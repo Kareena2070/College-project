@@ -1,35 +1,57 @@
+
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom"; 
+
+
+const MaterialCard = ({ material }) => (
+  <div className="bg-white p-5 rounded-lg shadow-lg hover:shadow-xl transition duration-300 border-t-4 border-blue-500 flex flex-col justify-between h-full">
+    <div>
+      <span className="text-xs font-semibold px-3 py-1 bg-blue-100 text-blue-800 rounded-full mb-3 inline-block">
+        {material.subject}
+      </span>
+      <h3 className="text-xl font-bold text-gray-900 mb-2">{material.title}</h3>
+      <p className="text-gray-600 text-sm mb-4 line-clamp-2">{material.description}</p>
+    </div>
+    
+    <div className="text-sm space-y-2">
+      <p className="text-gray-500">
+        <span className="font-medium text-gray-700">{material.uploadedBy?.name || 'Unknown'}</span>
+        <span className="ml-2 text-xs">| Uploaded: {new Date(material.createdAt).toLocaleDateString()}</span>
+      </p>
+      {material.fileUrl && (
+        <a
+          href={`http://localhost:5000/${material.fileUrl}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full text-center inline-flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded transition"
+        >
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          Download PDF
+        </a>
+      )}
+    </div>
+  </div>
+);
+
 
 export default function Materials() {
-  const [title, setTitle] = useState("");
-  const [subject, setSubject] = useState("");
-  const [description, setDescription] = useState("");
-  const [file, setFile] = useState(null);
+
   const [materials, setMaterials] = useState([]);
-  const [message, setMessage] = useState(""); // Message text
-  const [messageType, setMessageType] = useState(""); // "success" or "error"
-  const token = localStorage.getItem("token");
-
-  // Auto-clear message after 3 seconds
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => {
-        setMessage("");
-        setMessageType("");
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
-
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
   const fetchMaterials = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
       const res = await fetch("http://localhost:5000/api/materials");
       const data = await res.json();
       setMaterials(data);
     } catch (err) {
       console.error(err);
-      setMessage("Failed to fetch materials");
-      setMessageType("error");
+      setError("Failed to fetch materials. Please check server connection.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -37,121 +59,30 @@ export default function Materials() {
     fetchMaterials();
   }, []);
 
-  const handleUpload = async (e) => {
-    e.preventDefault();
-    setMessage("");
-    setMessageType("");
 
-    if (!title.trim() || !subject.trim() || !file) {
-      setMessage("Please fill all required fields: Title, Subject, and File");
-      setMessageType("error");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("title", title);
-    formData.append("subject", subject);
-    formData.append("description", description);
-    formData.append("file", file);
-
-    try {
-      const res = await fetch("http://localhost:5000/api/materials", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        setMessage("Material uploaded successfully");
-        setMessageType("success");
-        setTitle("");
-        setSubject("");
-        setDescription("");
-        setFile(null);
-        fetchMaterials();
-      } else {
-        setMessage(data.message || "Upload failed");
-        setMessageType("error");
-      }
-    } catch (err) {
-      console.error(err);
-      setMessage("Upload failed due to network/server error");
-      setMessageType("error");
-    }
-  };
+  if (isLoading) return <p className="text-center mt-10 text-lg text-gray-600">Loading resources...</p>;
+  if (error) return <p className="text-center mt-10 text-lg text-red-500">{error}</p>;
 
   return (
-    <div className="p-4 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Upload Study Material</h1>
-
-      {message && (
-        <p
-          className={`mb-4 p-2 rounded text-white ${
-            messageType === "success" ? "bg-green-500" : "bg-red-500"
-          }`}
-        >
-          {message}
-        </p>
-      )}
-
-      <form onSubmit={handleUpload} className="flex flex-col gap-2 mb-6">
-        <input
-          type="text"
-          placeholder="Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="border p-2 rounded"
-          required
-        />
-        <input
-          type="text"
-          placeholder="Subject"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          className="border p-2 rounded"
-          required
-        />
-        <textarea
-          placeholder="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="border p-2 rounded"
-        />
-        <input
-          type="file"
-          onChange={(e) => setFile(e.target.files[0])}
-          className="border p-2 rounded"
-          required
-        />
-        <button type="submit" className="bg-blue-600 text-white p-2 rounded">
-          Upload
-        </button>
-      </form>
-
-      <h2 className="text-xl font-bold mb-2">All Materials</h2>
-      <ul className="flex flex-col gap-2">
-        {materials.map((m) => (
-          <li key={m._id} className="border p-2 rounded">
-            <h3 className="font-semibold">{m.title}</h3>
-            <p><strong>Subject:</strong> {m.subject}</p>
-            <p>{m.description}</p>
-            <p><strong>Uploaded by:</strong> {m.uploadedBy?.name}</p>
-            {m.fileUrl && (
-              <a
-                href={`http://localhost:5000/${m.fileUrl}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 underline"
-              >
-                View File
-              </a>
-            )}
-          </li>
-        ))}
-      </ul>
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 p-4">
+      
+      <main className="lg:col-span-4">
+        <h1 className="text-3xl font-bold mb-6 text-gray-800">
+          Browse All Materials ({materials.length})
+        </h1>
+        
+        {materials.length === 0 ? (
+          <p className="p-6 bg-yellow-50 rounded-lg text-gray-600 border border-yellow-200">
+            No materials found matching your filters. Try uploading one!
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {materials.map((m) => (
+              <MaterialCard key={m._id} material={m} />
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   );
 }

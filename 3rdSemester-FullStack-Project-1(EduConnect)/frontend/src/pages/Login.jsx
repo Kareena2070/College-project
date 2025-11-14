@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function Login() {
+// 🎯 1. Receive the onLoginSuccess prop
+export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -24,6 +25,12 @@ export default function Login() {
         setError(data.message || "Login failed");
       } else {
         localStorage.setItem("token", data.token); // store JWT token
+        
+        // 🎯 2. Call the callback function to update App.jsx state instantly
+        if (onLoginSuccess) {
+            onLoginSuccess();
+        }
+
         navigate("/dashboard"); // redirect to Dashboard
       }
     } catch (err) {
